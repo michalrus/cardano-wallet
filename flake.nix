@@ -388,7 +388,14 @@
     lib.recursiveUpdate (removeAttrs systems [ "systemHydraJobs" "systemHydraJobsPr" "systemHydraJobsBors" ])
       {
         inherit overlay nixosModule nixosModules;
-        hydraJobs = mkHydraJobs systems.systemHydraJobs;
+        # Temporarily fix some merge bug – @michalrus
+        hydraJobs =
+          let hj = mkHydraJobs systems.systemHydraJobs; in
+          hj // {
+            macos = hj.macos // {
+              silicon = systems.systemHydraJobs.aarch64-darwin.macos.silicon;
+            };
+          };
         hydraJobsPr = mkHydraJobs systems.systemHydraJobsPr;
         hydraJobsBors = mkHydraJobs systems.systemHydraJobsBors;
       }
