@@ -47,13 +47,12 @@ import qualified Cardano.Api.Shelley as Node
 import qualified Cardano.Binary as CBOR
 import qualified Cardano.Ledger.Shelley.Metadata as Shelley
 import qualified Cardano.Wallet.Network.Light as LN
-import qualified Data.Aeson as Json
-import qualified Data.ByteString.Lazy as LBS
+import qualified Data.Aeson as Aeson
 import qualified Data.Map.Strict as Map
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import qualified Data.Text as T
-import qualified Data.Vector as Vec
+import qualified Data.Vector as V
 import qualified Ouroboros.Consensus.Cardano.Block as OC
 import qualified Ouroboros.Consensus.HardFork.History.Qry as HF
 
@@ -619,25 +618,25 @@ assembleTransaction
             }
 
   where
-    unmarshalMetadataValue :: Json.Value -> Either String TxMetadataValue
+    unmarshalMetadataValue :: Aeson.Value -> Either String TxMetadataValue
     unmarshalMetadataValue = \case
-        Json.Object hm ->
+        Aeson.Object hm ->
             TxMetaMap <$> for (HashMap.toList hm)
                 ( bitraverse
-                    (unmarshalMetadataValue . Json.String)
+                    (unmarshalMetadataValue . Aeson.String)
                     unmarshalMetadataValue
                 )
-        Json.Array vec ->
-            TxMetaList . Vec.toList <$> for vec unmarshalMetadataValue
-        Json.String txt ->
+        Aeson.Array vec ->
+            TxMetaList . V.toList <$> for vec unmarshalMetadataValue
+        Aeson.String txt ->
             Right $ TxMetaText txt
-        Json.Number sci ->
+        Aeson.Number sci ->
             if isInteger sci
                 then Right (TxMetaNumber (truncate sci))
                 else Left "Non-integer metadata value"
-        Json.Bool b ->
+        Aeson.Bool b ->
             Left $ "Expected TxMetadataValue but got bool (" <> show b <> ")"
-        Json.Null ->
+        Aeson.Null ->
             Left "Expected TxMetadataValue but got null"
 
     fromInputs
