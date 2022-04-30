@@ -1547,6 +1547,25 @@ balanceTransaction
     -> ArgGenChange s
     -> (W.ProtocolParameters, Cardano.ProtocolParameters)
     -> (Cardano.EraHistory Cardano.CardanoMode, SystemStart)
+    -- ^ The 'Cardano.EraHistory' and 'SystemStart' is needed to convert
+    -- validity intervals from 'UTCTime' to 'SlotNo' when executing Plutus
+    -- scripts.
+    --
+    -- 'SystemStart' is defined in the genesis file.
+    --
+    -- 'Cardano.EraHistory' can be retrieved via a Local State Query to a local
+    -- node. It can also be hard-coded because it changes so seldom.
+    --
+    -- ===
+    --
+    -- TODO: Confirm that nothing too bad can happen when providing an incorrect
+    -- 'Cardano.EraHistory'. Relevant ledger code https://github.com/input-output-hk/cardano-ledger/blob/fdec04e8c071060a003263cdcb37e7319fb4dbf3/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/TxInfo.hs#L428-L440
+    --
+    -- Preliminary thoughts:
+    -- - PastHorizon-errors shouldn't matter because it's a phase 1 failure.
+    -- - Running the scripts with wrong 'UTCTime' ranges could change their
+    -- execution. Does the script integrity hash protect us here? And can alonzo
+    -- txs be accepted by the node in vasil? (I think yes)
     -> (UTxOIndex WalletUTxO, Wallet s, Set Tx)
     -> PartialTx era
     -> ExceptT ErrBalanceTx m (Cardano.Tx era)
