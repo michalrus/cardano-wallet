@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
@@ -12,10 +13,8 @@
 {-# LANGUAGE NoMonoLocalBinds #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- | Benchmark measuring how long restoration takes for different wallets.
 --
@@ -78,7 +77,11 @@ import Cardano.Wallet.DB.Sqlite
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network
-    ( ChainFollowLog (..), ChainSyncLog (..), NetworkLayer (..), ChainFollower (ChainFollower) )
+    ( ChainFollowLog (..)
+    , ChainFollower (ChainFollower, readLocalTip, rollBackward, rollForward)
+    , ChainSyncLog (..)
+    , NetworkLayer (..)
+    )
 
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
@@ -146,6 +149,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , NodeToClientVersionData
     , emptyGenesis
     , fromCardanoBlock
+    , numberOfTransactionsInBlock
     )
 import Cardano.Wallet.Shelley.Launch
     ( CardanoNodeConn, NetworkConfiguration (..), parseGenesisData )
@@ -173,6 +177,8 @@ import Crypto.Hash.Utils
     ( blake2b256 )
 import Data.Aeson
     ( ToJSON (..), genericToJSON, (.=) )
+import Data.Functor.Contravariant
+    ( contramap )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.List
@@ -187,6 +193,8 @@ import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock.POSIX
     ( POSIXTime, getCurrentTime, utcTimeToPOSIXSeconds )
+import Data.Word
+    ( Word32 )
 import Fmt
     ( Buildable
     , blockListF'
@@ -215,6 +223,8 @@ import System.IO
     ( IOMode (..), hFlush, withFile )
 import Type.Reflection
     ( Typeable )
+import UnliftIO
+    ( async, atomically, cancel, newEmptyTMVarIO, putTMVar, takeTMVar )
 import UnliftIO.Concurrent
     ( forkIO, threadDelay )
 import UnliftIO.Exception
@@ -232,12 +242,9 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import Data.Functor.Contravariant (contramap)
-import UnliftIO (putTMVar, newEmptyTMVarIO, takeTMVar, async, atomically, cancel)
-import Data.Foldable (toList)
-import qualified Data.List.NonEmpty as NE
 
 main :: IO ()
 main = execBenchWithNode argsNetworkConfig cardanoRestoreBench >>= exitWith
@@ -314,7 +321,7 @@ cardanoRestoreBench tr c socketFile = do
                 True -- Write progress to .timelog file
                 (unsafeMkPercentage 1)
                 benchmarksSeq
-    let benchBaseline = do
+    let benchRestoreBaseline = do
             let benchname = "baseline"
             bench_baseline_restoration
                 networkProxy
@@ -328,19 +335,18 @@ cardanoRestoreBench tr c socketFile = do
                 (unsafeMkPercentage 1)
 
 
-    let ignore _f = pure $ SomeBenchmarkResults ()
     runBenchmarks
-        [ -- We restore /to/ a percentage that is low enough to be fast,
+        [ benchRestoreBaseline
+          -- We restore /to/ a percentage that is low enough to be fast,
           -- but high enough to give an accurate enough indication of the
           -- to-100% time.
-        ignore $ benchRestoreMultipleWallets 1 (unsafeMkPercentage 0.1)
-        , ignore $ benchRestoreMultipleWallets 10 (unsafeMkPercentage 0.01)
-        , ignore $ benchRestoreMultipleWallets 100 (unsafeMkPercentage 0.01)
+        , benchRestoreMultipleWallets 1 (unsafeMkPercentage 0.1)
+        , benchRestoreMultipleWallets 10 (unsafeMkPercentage 0.01)
+        , benchRestoreMultipleWallets 100 (unsafeMkPercentage 0.01)
 
-        , ignore $ benchRestoreSeqWithOwnership (Proxy @0)
-        , ignore $ benchRestoreSeqWithOwnership (Proxy @1)
-        , ignore $ benchRestoreRndWithOwnership (Proxy @1)
-        , benchBaseline
+        , benchRestoreSeqWithOwnership (Proxy @0)
+        , benchRestoreSeqWithOwnership (Proxy @1)
+        , benchRestoreRndWithOwnership (Proxy @1)
         ]
   where
     walletRnd
@@ -616,7 +622,7 @@ benchmarksSeq _ w wid _wname benchname restoreTime = do
 
 data BenchBaselineResults = BenchBaselineResults
     { benchName :: Text
-    , restoreTime :: Time
+    , restorationTime :: Time
     } deriving (Show, Generic)
 
 instance Buildable BenchBaselineResults where
@@ -628,37 +634,45 @@ instance ToJSON BenchBaselineResults where
 {- HLINT ignore bench_baseline_restoration "Use camelCase" -}
 bench_baseline_restoration
     :: forall (n :: NetworkDiscriminant) .
-        (
-         NetworkDiscriminantVal n
+        ( NetworkDiscriminantVal n
         , HasNetworkId n
         )
     => Proxy n
     -> Tracer IO (BenchmarkLog n)
-    -> Trace IO Text -- ^ For wallet tracing
-    -> CardanoNodeConn  -- ^ Socket path
+    -> Trace IO Text
+    -- ^ For wallet tracing
+    -> CardanoNodeConn 
+    -- ^ Socket path
     -> NetworkParameters
     -> NodeToClientVersionData
-    -> Text -- ^ Benchmark name (used for naming resulting files)
-    -> Bool -- ^ if to write to disk
-    -> Percentage -- ^ Target sync progress
+    -> Text
+    -- ^ Benchmark name (used for naming resulting files)
+    -> Bool
+     -- ^ if to write to disk
+    -> Percentage
+    -- ^ Target sync progress
     -> IO SomeBenchmarkResults
-bench_baseline_restoration proxy tr wlTr socket np vData benchname traceToDisk  targetSync = do
-    putStrLn $ "*** " ++ T.unpack benchname
+bench_baseline_restoration
+    proxy tr wlTr socket np vData benchName traceToDisk targetSync = do
+    putStrLn $ "*** " ++ T.unpack benchName
     let networkId = networkIdVal proxy
-    let gp = genesisParameters np
-    withWalletLayerTracer benchname traceToDisk $ \progressTrace -> do
+    withWalletLayerTracer benchName traceToDisk $ \progressTrace -> do
         withNetworkLayer (trMessageText wlTr) networkId np socket vData sTol $ \nw -> do
             wait <- newEmptyTMVarIO
-            synchronizer <- async $ chainSync nw nullTracer $ ChainFollower
-                do pure []
-                do \blocks _ntip -> do
-                    let headers =  header . fromCardanoBlock gp <$>  blocks
-                    traceWith progressTrace $ toList headers
-                    atomically $ putTMVar wait $ NE.last headers
-                do pure
-            (_, restorationTime) <- bench "restoration" $ reportProgress nw tr targetSync (fmap slotNo . atomically $ takeTMVar wait)
+            synchronizer <- async $ chainSync nw nullTracer $ ChainFollower 
+                { readLocalTip  = pure []
+                , rollForward = \blocks _ntip -> do
+                    let (ntxs, hss) = NE.unzip $ numberOfTransactionsInBlock <$> blocks
+                        (heights, slots) = NE.unzip hss
+                    traceWith progressTrace $ Just $ NE.last heights
+                    seq (sum ntxs) $ atomically $ putTMVar wait $ NE.last slots
+                , rollBackward = pure
+                }
+            (_, restorationTime) <- bench "restoration" $
+                reportProgress nw tr targetSync (atomically $ takeTMVar wait)
             cancel synchronizer
-            pure $ SomeBenchmarkResults (BenchBaselineResults benchname restorationTime)
+            pure $ SomeBenchmarkResults (BenchBaselineResults{benchName, restorationTime})
+            
 
 {- HLINT ignore bench_restoration "Use camelCase" -}
 bench_restoration
@@ -705,7 +719,7 @@ bench_restoration proxy tr wlTr socket np vData benchname wallets traceToDisk ta
         withBenchDBLayer @s @k ti wlTr $ \db -> do
             withWalletLayerTracer benchname traceToDisk $ \progressTrace -> do
                 let w = WalletLayer
-                        (trMessageText wlTr <> contramap walletWorkerLogToBlocHeaders progressTrace)
+                        (trMessageText wlTr <> contramap walletWorkerLogToBlockHeight progressTrace)
                         (emptyGenesis gp, np, sTol)
                         nw
                         tl
@@ -735,16 +749,24 @@ bench_restoration proxy tr wlTr socket np vData benchname wallets traceToDisk ta
   where
     fst' (x,_,_) = x
 
-walletWorkerLogToBlocHeaders :: WalletWorkerLog -> [BlockHeader]
-walletWorkerLogToBlocHeaders = \case
-    MsgChainFollow (MsgChainSync (MsgChainRollForward bs _nodeTip)) -> toList bs
-    _ -> mempty
+walletWorkerLogToBlockHeight
+    :: WalletWorkerLog
+    -> Maybe (Quantity "block" Word32)
+walletWorkerLogToBlockHeight = \case
+    MsgChainFollow (MsgChainSync (MsgChainRollForward bs _nodeTip)) ->
+        Just $ blockHeight $ NE.last bs
+    _ ->
+        Nothing
 
 saveBenchmarkPoints :: ToJSON a => Text -> a -> IO ()
 saveBenchmarkPoints benchname = Aeson.encodeFile (T.unpack benchname <> ".json") 
 
-withWalletLayerTracer :: Text -> Bool -> (Tracer IO [BlockHeader] -> IO r) -> IO r
-withWalletLayerTracer benchname traceToDisk   act
+withWalletLayerTracer
+    :: Text
+    -> Bool
+    -> (Tracer IO (Maybe (Quantity "block" Word32)) -> IO r)
+    -> IO r
+withWalletLayerTracer benchname traceToDisk act
     | traceToDisk =
         withFile (T.unpack benchname <> ".timelog") WriteMode $ \h -> do
             -- Use a custom tracer to output (time, blockHeight) to a file
@@ -753,7 +775,7 @@ withWalletLayerTracer benchname traceToDisk   act
                     liftIO . B8.hPut h . T.encodeUtf8 . (<> "\n") $ msg
                     hFlush h
             act $ traceBlockHeadersProgressForPlotting fileTr
-    | otherwise   = act nullTracer
+    | otherwise = act nullTracer
 
 dummyAddress
     :: forall (n :: NetworkDiscriminant). NetworkDiscriminantVal n
@@ -772,13 +794,15 @@ dummySeedFromName = SomeMnemonic @24
     . blake2b256
     . T.encodeUtf8
    
-traceBlockHeadersProgressForPlotting :: Tracer IO Text -> Tracer IO [BlockHeader]
-traceBlockHeadersProgressForPlotting tr = Tracer $ \case
-    [] -> pure ()
-    bs -> do
-        let tip = pretty . getQuantity . blockHeight . last $ bs
-        time <- pretty . utcTimeToPOSIXSeconds <$> getCurrentTime
-        traceWith tr (time <> " " <> tip)
+traceBlockHeadersProgressForPlotting
+    :: Tracer IO Text
+    -> Tracer IO (Maybe (Quantity "block" Word32))
+traceBlockHeadersProgressForPlotting tr = Tracer $ \bs -> do
+    let tip = pretty . getQuantity <$> bs
+    time <- pretty . utcTimeToPOSIXSeconds <$> getCurrentTime
+    traceWith tr $ maybe "no tip" ((time <> " ") <>) tip 
+
+
 
 withBenchDBLayer
     :: forall s k a.
@@ -853,7 +877,12 @@ waitForWalletsSyncTo targetSync tr proxy walletLayer wids gp vData = do
     WalletLayer _ _ nl _ _ = walletLayer
     fst' (x,_,_) = x
 
-reportProgress :: NetworkLayer IO block -> Tracer IO (BenchmarkLog n) -> Percentage -> IO SlotNo -> IO ()
+reportProgress
+    :: NetworkLayer IO block
+    -> Tracer IO (BenchmarkLog n)
+    -> Percentage
+    -> IO SlotNo
+    -> IO ()
 reportProgress nw tr targetSync readSlot =  do
     posixNow <- utcTimeToPOSIXSeconds <$> getCurrentTime
     progress <- readSlot >>= syncProgress nw
@@ -898,7 +927,6 @@ data BenchmarkLog (n :: NetworkDiscriminant)
     | MsgSyncStart (Proxy n)
     | MsgSyncCompleted (Proxy n) SlotNo
     | MsgRetryShortly Int
-
     deriving (Show, Eq)
 
 instance HasPrivacyAnnotation (BenchmarkLog n)
