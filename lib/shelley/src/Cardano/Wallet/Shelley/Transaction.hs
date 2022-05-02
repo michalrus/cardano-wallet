@@ -705,7 +705,7 @@ _toCardanoUTxO utxo extraUTxO =
         --
         -- NOTE: There is a similar case in the 'resolveInput' of
         -- 'balanceTransaction'.
-        Cardano.UTxO $ utxo' <> extraUTxO'
+        Cardano.UTxO $ extraUTxO' <> utxo' -- Left-bias
   where
     era = Cardano.shelleyBasedEra @era
 

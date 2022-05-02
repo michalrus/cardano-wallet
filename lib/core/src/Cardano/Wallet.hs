@@ -559,6 +559,7 @@ import Fmt
     ( Buildable
     , Builder
     , blockListF
+    , blockListF'
     , blockMapF
     , build
     , listF'
@@ -1523,14 +1524,14 @@ data PartialTx era = PartialTx
     } deriving (Show, Generic, Eq)
 
 instance Buildable (PartialTx era) where
-    build (PartialTx tx ins redeemers) = nameF "PartialTx" $ mconcat
-        [ -- nameF "inputs" (listF' inF ins)
-         nameF "redeemers" (pretty redeemers)
-        , nameF "tx" (cardanoTxF tx)
-        ]
+    build (PartialTx tx (Cardano.UTxO ins) redeemers)
+        = nameF "PartialTx" $ mconcat
+            [ nameF "inputs" (blockListF' "-" inF (Map.toList ins))
+            , nameF "redeemers" (pretty redeemers)
+            , nameF "tx" (cardanoTxF tx)
+            ]
       where
-        --inF :: (TxIn, TxOut, Maybe (Hash "Datum")) -> Builder
-        --inF (i,o,d) = ""+|i|+" "+|o|+" "+|d|+""
+        inF = build . show
 
         cardanoTxF :: Cardano.Tx era -> Builder
         cardanoTxF tx' = pretty $ pShow tx'
@@ -1747,14 +1748,13 @@ balanceTransactionWithSelectionStrategy
 
     toSealed = sealedTxFromCardano . Cardano.InAnyCardanoEra Cardano.cardanoEra
 
-
     extractExternallySelectedUTxO
         :: PartialTx era
         -> UTxOIndex WalletUTxO
-    extractExternallySelectedUTxO (PartialTx tx (Cardano.UTxO utxo) _rdms) =
+    extractExternallySelectedUTxO (PartialTx tx _ _rdms) =
         UTxOIndex.fromSequence $ flip map txIns $ \(i, _) -> do
             case Map.lookup i utxo of
-                Nothing -> error "extractExternallySelectedUTxO: todo"
+                Nothing -> error "fail with unresolved"
                 Just o ->
                     let
                         i' = _fromCardanoTxIn tl i
@@ -1762,7 +1762,7 @@ balanceTransactionWithSelectionStrategy
                     in
                         (WalletUTxO i' addr, bundle)
       where
-
+        Cardano.UTxO utxo = combinedUTxO
         Cardano.Tx (Cardano.TxBody (Cardano.TxBodyContent { Cardano.txIns })) _
             = tx
 
@@ -1803,9 +1803,9 @@ balanceTransactionWithSelectionStrategy
 
     combinedUTxO :: Cardano.UTxO era
     combinedUTxO = Cardano.UTxO $ mconcat
-        [ unUTxO $ toCardanoUTxO tl
+        [ unUTxO inputUTxO
+        , unUTxO $ toCardanoUTxO tl
             (CS.toExternalUTxOMap $ UTxOIndex.toMap internalUtxoAvailable) []
-        , unUTxO inputUTxO
         ]
       where
         unUTxO (Cardano.UTxO u) = u
@@ -3471,6 +3471,7 @@ data ErrBalanceTx
     | ErrBalanceTxAssignRedeemers ErrAssignRedeemers
     | ErrBalanceTxInternalError ErrBalanceTxInternalError
     | ErrBalanceTxZeroAdaOutput
+    | ErrBalanceTxConflictingInputResolution
     | ErrByronTxNotSupported
     deriving (Show, Eq)
 
