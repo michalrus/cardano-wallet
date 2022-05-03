@@ -14,7 +14,7 @@
         "pretty".revision = (((hackage."pretty")."1.1.3.6").revisions).default;
         "amazonka".revision = (((hackage."amazonka")."1.6.1").revisions).default;
         "network-uri".revision = (((hackage."network-uri")."2.6.4.1").revisions).default;
-        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.17.0").revisions).default;
+        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.19.1").revisions).default;
         "unordered-containers".flags.debug = false;
         "integer-logarithms".revision = (((hackage."integer-logarithms")."1.0.3.1").revisions).default;
         "integer-logarithms".flags.check-bounds = false;
@@ -85,7 +85,7 @@
         "mtl-compat".revision = (((hackage."mtl-compat")."0.2.2").revisions).default;
         "mtl-compat".flags.two-point-two = false;
         "mtl-compat".flags.two-point-one = false;
-        "unliftio".revision = (((hackage."unliftio")."0.2.21.0").revisions).default;
+        "unliftio".revision = (((hackage."unliftio")."0.2.22.0").revisions).default;
         "tls".revision = (((hackage."tls")."1.5.7").revisions).default;
         "tls".flags.network = true;
         "tls".flags.hans = false;
@@ -107,7 +107,7 @@
         "reflection".revision = (((hackage."reflection")."2.1.6").revisions).default;
         "reflection".flags.slow = false;
         "reflection".flags.template-haskell = true;
-        "hspec-discover".revision = (((hackage."hspec-discover")."2.9.4").revisions).default;
+        "hspec-discover".revision = (((hackage."hspec-discover")."2.9.7").revisions).default;
         "pem".revision = (((hackage."pem")."0.2.4").revisions).default;
         "lens-aeson".revision = (((hackage."lens-aeson")."1.1.3").revisions).default;
         "aeson".revision = (((hackage."aeson")."1.4.7.1").revisions).default;
@@ -214,14 +214,14 @@
         "hsc2hs".flags.in-ghc-tree = false;
         "split".revision = (((hackage."split")."0.2.3.4").revisions).default;
         "base-orphans".revision = (((hackage."base-orphans")."0.8.6").revisions).default;
-        "hspec-core".revision = (((hackage."hspec-core")."2.9.4").revisions).default;
+        "hspec-core".revision = (((hackage."hspec-core")."2.9.7").revisions).default;
         "amazonka-core".revision = (((hackage."amazonka-core")."1.6.1").revisions).default;
         "amazonka-core".flags.old-locale = false;
         "time-compat".revision = (((hackage."time-compat")."1.9.6.1").revisions).default;
         "time-compat".flags.old-locale = false;
         "setenv".revision = (((hackage."setenv")."0.1.1.3").revisions).default;
         "typed-process".revision = (((hackage."typed-process")."0.2.8.0").revisions).default;
-        "hspec".revision = (((hackage."hspec")."2.9.4").revisions).default;
+        "hspec".revision = (((hackage."hspec")."2.9.7").revisions).default;
         "primitive".revision = (((hackage."primitive")."0.7.3.0").revisions).default;
         "directory".revision = (((hackage."directory")."1.3.6.0").revisions).default;
         "concurrent-output".revision = (((hackage."concurrent-output")."1.10.15").revisions).default;
@@ -247,7 +247,7 @@
         "deepseq".revision = (((hackage."deepseq")."1.4.4.0").revisions).default;
         "unix".revision = (((hackage."unix")."2.7.2.2").revisions).default;
         "relation".revision = (((hackage."relation")."0.5.2.0").revisions).default;
-        "ansi-terminal".revision = (((hackage."ansi-terminal")."0.11.1").revisions).default;
+        "ansi-terminal".revision = (((hackage."ansi-terminal")."0.11.3").revisions).default;
         "ansi-terminal".flags.example = false;
         "hedgehog".revision = (((hackage."hedgehog")."1.0.5").revisions).default;
         "blaze-builder".revision = (((hackage."blaze-builder")."0.4.2.2").revisions).default;

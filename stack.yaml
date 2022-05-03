@@ -69,9 +69,9 @@ extra-deps:
 - hspec-2.8.2
 - hspec-core-2.8.2
 - hspec-discover-2.8.2
-- blockfrost-api-0.3.1.0
-- blockfrost-client-0.3.1.0
-- blockfrost-client-core-0.2.0.0
+- blockfrost-api-0.4.0.1
+- blockfrost-client-0.4.0.1
+- blockfrost-client-core-0.4.0.1
 - quickcheck-quid-0.0.1
 - servant-multipart-client-0.12.1
 

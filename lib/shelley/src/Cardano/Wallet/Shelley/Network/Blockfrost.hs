@@ -647,7 +647,7 @@ assembleTransaction
       where
         f :: [BF.UtxoInput] -> Either BlockfrostError [(TxIn, Coin)]
         f = traverse $ \input@BF.UtxoInput{..} -> do
-            txHash <- parseTxHash _utxoInputTxHash
+            txHash <- parseTxHash $ BF.unTxHash _utxoInputTxHash
             txIndex <- _utxoInputOutputIndex <?#> "_utxoInputOutputIndex"
             coin <-
                 case [ lovelaces

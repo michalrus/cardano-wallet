@@ -73,7 +73,7 @@
         "filemanip".revision = (((hackage."filemanip")."0.3.6.3").revisions).default;
         "deepseq".revision = (((hackage."deepseq")."1.4.4.0").revisions).default;
         "unix".revision = (((hackage."unix")."2.7.2.2").revisions).default;
-        "ansi-terminal".revision = (((hackage."ansi-terminal")."0.11.1").revisions).default;
+        "ansi-terminal".revision = (((hackage."ansi-terminal")."0.11.3").revisions).default;
         "ansi-terminal".flags.example = false;
         "hashable".revision = (((hackage."hashable")."1.4.0.2").revisions).default;
         "hashable".flags.containers = true;

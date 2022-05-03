@@ -8,7 +8,7 @@
         "streaming-commons".revision = (((hackage."streaming-commons")."0.2.2.4").revisions).default;
         "streaming-commons".flags.use-bytestring-builder = false;
         "pretty".revision = (((hackage."pretty")."1.1.3.6").revisions).default;
-        "cborg".revision = (((hackage."cborg")."0.2.6.0").revisions).default;
+        "cborg".revision = (((hackage."cborg")."0.2.7.0").revisions).default;
         "cborg".flags.optimize-gmp = true;
         "repline".revision = (((hackage."repline")."0.4.0.0").revisions).default;
         "network-uri".revision = (((hackage."network-uri")."2.6.4.1").revisions).default;
@@ -16,7 +16,7 @@
         "parsers".flags.parsec = true;
         "parsers".flags.binary = true;
         "parsers".flags.attoparsec = true;
-        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.17.0").revisions).default;
+        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.19.1").revisions).default;
         "unordered-containers".flags.debug = false;
         "Diff".revision = (((hackage."Diff")."0.4.1").revisions).default;
         "integer-logarithms".revision = (((hackage."integer-logarithms")."1.0.3.1").revisions).default;
@@ -102,7 +102,7 @@
         "mtl".revision = (((hackage."mtl")."2.2.2").revisions).default;
         "OneTuple".revision = (((hackage."OneTuple")."0.3.1").revisions).default;
         "mime-types".revision = (((hackage."mime-types")."0.1.0.9").revisions).default;
-        "serialise".revision = (((hackage."serialise")."0.2.4.0").revisions).default;
+        "serialise".revision = (((hackage."serialise")."0.2.5.0").revisions).default;
         "serialise".flags.newtime15 = true;
         "parsec".revision = (((hackage."parsec")."3.1.14.0").revisions).default;
         "bytestring".revision = (((hackage."bytestring")."0.10.12.0").revisions).default;
@@ -153,7 +153,7 @@
         "semigroups".flags.unordered-containers = true;
         "semigroups".flags.text = true;
         "semigroups".flags.hashable = true;
-        "cborg-json".revision = (((hackage."cborg-json")."0.2.3.0").revisions).default;
+        "cborg-json".revision = (((hackage."cborg-json")."0.2.4.0").revisions).default;
         "free".revision = (((hackage."free")."5.1.7").revisions).default;
         "terminfo".revision = (((hackage."terminfo")."0.4.1.4").revisions).default;
         "connection".revision = (((hackage."connection")."0.3.1").revisions).default;
@@ -240,7 +240,7 @@
         "algebraic-graphs".revision = (((hackage."algebraic-graphs")."0.5").revisions).default;
         "deepseq".revision = (((hackage."deepseq")."1.4.4.0").revisions).default;
         "unix".revision = (((hackage."unix")."2.7.2.2").revisions).default;
-        "ansi-terminal".revision = (((hackage."ansi-terminal")."0.11.1").revisions).default;
+        "ansi-terminal".revision = (((hackage."ansi-terminal")."0.11.3").revisions).default;
         "ansi-terminal".flags.example = false;
         "blaze-builder".revision = (((hackage."blaze-builder")."0.4.2.2").revisions).default;
         "x509-store".revision = (((hackage."x509-store")."1.6.9").revisions).default;
