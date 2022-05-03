@@ -142,7 +142,9 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..)
+    , TxBurn (TxBurn)
     , TxIn (..)
+    , TxMint (TxMint)
     , TxOut (..)
     , TxScriptValidity (TxScriptInvalid, TxScriptValid)
     , TxSize (..)
@@ -571,8 +573,8 @@ assembleTransaction
     metadataJSON = liftEither $ do
         txId <- parseTxHash _transactionHash
         let fee = Just $ Coin $ fromIntegral _transactionFees
-        (resolvedInputs, resolvedCollateral) <-
-                fromInputs _transactionUtxosInputs
+        (resolvedInputs, resolvedCollateralInputs) <-
+            fromInputs _transactionUtxosInputs
         outputs <- for _transactionUtxosOutputs $ \out@BF.UtxoOutput{..} -> do
             let outAddr = BF.unAddress _utxoOutputAddress
             address <- either (throwError . InvalidAddress outAddr) pure $
@@ -584,6 +586,9 @@ assembleTransaction
                     _ -> throwError $ InvalidUtxoOutputAmount out
                 pure $ TokenBundle coin mempty -- TODO: Handle native assets
             pure TxOut{..}
+        let collateralOutput = undefined
+            mint = TxMint mempty -- TODO: get it from where?
+            burn = TxBurn mempty -- TODO: get it from where?
         withdrawals <- Map.fromList <$>
             for txWithdrawals ( \BF.TransactionWithdrawal{..} -> do
                 let addr = BF.unAddress _transactionWithdrawalAddress
@@ -609,12 +614,15 @@ assembleTransaction
         pure Tx
             { txId
             , fee
-            , resolvedCollateral
             , resolvedInputs
+            , resolvedCollateralInputs
             , outputs
+            , collateralOutput
             , withdrawals
             , metadata
             , scriptValidity
+            , mint
+            , burn
             }
 
   where
