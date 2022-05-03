@@ -1611,6 +1611,15 @@ balanceTransactionWithSelectionStrategy
     guardExistingCollateral partialTx
     guardZeroAdaOutputs (extractOutputsFromTx $ toSealed partialTx)
     guardConflictingWithdrawalNetworks partialTx
+    -- guardUTxOConsistency internalUtxoAvailable combinedUTxO
+
+    let -- The wallet's UTxO, availible for selection, as a @Cardano.UTxO era@
+        -- type.
+        availableCardanoUTxO :: Cardano.UTxO era
+        availableCardanoUTxO = toCardanoUTxO tl (CS.toExternalUTxOMap $ view #universe internalUtxoAvailable) []
+
+    let intersectUTxOs :: Cardano.UTxO era -> Cardano.UTxO era -> Cardano.UTxO era
+        intersectUTxOs (Cardano.UTxO m1) (Cardano.UTxO m2) = Cardano.UTxO $ Map.intersection m1 m2
 
     (balance0, minfee0) <- balanceAfterSettingMinFee partialTx
 
