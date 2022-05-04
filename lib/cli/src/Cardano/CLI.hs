@@ -149,7 +149,6 @@ import Cardano.Wallet.Api.Types
     , ApiPostRandomAddressData (..)
     , ApiT (..)
     , ApiTxId (ApiTxId)
-    , ApiTxMetadata (..)
     , ApiWallet
     , Base (Base16)
     , ByronWalletPostData (..)
@@ -162,6 +161,8 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     , fmtAllowedWords
     )
+import Cardano.Wallet.Api.Types.SchemaMetadata
+    ( TxMetadataWithSchema )
 import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -729,6 +730,15 @@ cmdWalletGetUtxoStatistics mkClient =
 data TransactionFeatures = NoShelleyFeatures | ShelleyFeatures
     deriving (Show, Eq)
 
+data MetadataSchema  = SimpleSchema | FullSchema
+    deriving (Show, Eq)
+
+-- | which json schema to use for output, True is simple
+metadataSchemaOption :: Parser MetadataSchema
+metadataSchemaOption = flag FullSchema SimpleSchema
+    $ long "simple-metadata"
+        <> help "output metadata json in no-schema encoding"
+
 -- | cardano-wallet transaction
 cmdTransaction
     :: ToJSON wallet
@@ -760,7 +770,7 @@ data TransactionCreateArgs t = TransactionCreateArgs
     { _port :: Port "Wallet"
     , _id :: WalletId
     , _payments :: NonEmpty Text
-    , _metadata :: ApiTxMetadata
+    , _metadata :: Maybe TxMetadataWithSchema
     , _timeToLive :: Maybe (Quantity "second" NominalDiffTime)
     }
 
@@ -783,7 +793,7 @@ cmdTransactionCreate isShelley mkTxClient mkWalletClient =
         <$> portOption
         <*> walletIdArgument
         <*> fmap NE.fromList (some paymentOption)
-        <*> whenShelley (ApiTxMetadata Nothing) metadataOption isShelley
+        <*> whenShelley Nothing metadataOption isShelley
         <*> whenShelley Nothing timeToLiveOption isShelley
     exec (TransactionCreateArgs wPort wId wAddressAmounts md ttl) = do
         wPayments <- either (fail . getTextDecodingError) pure $
@@ -819,7 +829,7 @@ cmdTransactionFees isShelley mkTxClient mkWalletClient =
         <$> portOption
         <*> walletIdArgument
         <*> fmap NE.fromList (some paymentOption)
-        <*> whenShelley (ApiTxMetadata Nothing) metadataOption isShelley
+        <*> whenShelley Nothing metadataOption isShelley
         <*> whenShelley Nothing timeToLiveOption isShelley
     exec (TransactionCreateArgs wPort wId wAddressAmounts md ttl) = do
         wPayments <- either (fail . getTextDecodingError) pure $
@@ -845,6 +855,7 @@ data TransactionListArgs = TransactionListArgs
     , _timeRangeStart :: Maybe Iso8601Time
     , _timeRangeEnd :: Maybe Iso8601Time
     , _sortOrder :: Maybe SortOrder
+    , _schema :: MetadataSchema
     }
 
 cmdTransactionList
@@ -860,13 +871,17 @@ cmdTransactionList mkTxClient =
         <*> optional timeRangeStartOption
         <*> optional timeRangeEndOption
         <*> optional sortOrderOption
-    exec (TransactionListArgs wPort wId mTimeRangeStart mTimeRangeEnd mOrder) =
+        <*> metadataSchemaOption
+    exec
+        (TransactionListArgs
+            wPort wId mTimeRangeStart mTimeRangeEnd mOrder metadataSchema) =
         runClient wPort Aeson.encodePretty $ listTransactions
             mkTxClient
             (ApiT wId)
             mTimeRangeStart
             mTimeRangeEnd
             (ApiT <$> mOrder)
+            (metadataSchema == SimpleSchema)
 
 -- | Arguments for 'transaction submit' command
 data TransactionSubmitArgs = TransactionSubmitArgs
@@ -916,6 +931,7 @@ data TransactionGetArgs = TransactionGetArgs
     { _port :: Port "Wallet"
     , _wid :: WalletId
     , _txid :: TxId
+    , _schema :: MetadataSchema
     }
 
 cmdTransactionGet
@@ -929,9 +945,11 @@ cmdTransactionGet mkClient =
         <$> portOption
         <*> walletIdArgument
         <*> transactionIdArgument
-    exec (TransactionGetArgs wPort wId txId) = do
+        <*> metadataSchemaOption
+    exec (TransactionGetArgs wPort wId txId metadataSchema ) = do
         runClient wPort Aeson.encodePretty $ getTransaction mkClient
             (ApiT wId)
+            (metadataSchema == SimpleSchema)
             (ApiTxId $ ApiT $ getTxId txId)
 
 {-------------------------------------------------------------------------------
@@ -1435,16 +1453,16 @@ transactionSubmitPayloadArgument = argumentT $ mempty
 -- | [--metadata=JSON]
 --
 -- Note: we decode the JSON just so that we can validate more client-side.
-metadataOption :: Parser ApiTxMetadata
+metadataOption :: Parser (Maybe TxMetadataWithSchema)
 metadataOption = option txMetadataReader $ mempty
     <> long "metadata"
     <> metavar "JSON"
-    <> value (ApiTxMetadata Nothing)
+    <> value Nothing
     <> help ("Application-specific transaction metadata as a JSON object. "
              <> "The value must match the schema defined in the "
              <> "cardano-wallet OpenAPI specification.")
 
-txMetadataReader :: ReadM ApiTxMetadata
+txMetadataReader :: ReadM (Maybe TxMetadataWithSchema)
 txMetadataReader = eitherReader (Aeson.eitherDecode' . BL8.pack)
 
 -- | [--ttl=DURATION]

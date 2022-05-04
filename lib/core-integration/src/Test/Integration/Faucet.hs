@@ -961,6 +961,26 @@ seqMnemonics = unsafeMkMnemonic <$>
       , "drive", "grant", "tumble", "catalog", "plastic"
       , "hello", "stomach", "utility", "safe", "cradle"
       ]
+    , [ "garage" , "warm" , "blouse" , "peanut" , "pair"
+      , "trend" , "fine" , "hybrid" , "risk" , "mail"
+      , "fan" , "damage" , "push" , "shrug" , "boost"
+      ]
+    , [ "sleep" , "sword" , "chaos" , "taste" , "emotion"
+      , "achieve" , "prosper" , "scrap" , "delay" , "wing"
+      , "ketchup" , "neglect" , "foam" , "muffin" , "brisk"
+      ]
+    , [ "lawn" , "bring" , "diamond" , "network" , "remember"
+      , "slight" , "auto" , "select" , "vivid" , "silent"
+      , "letter" , "usual" , "pen" , "yellow" , "equip"
+      ]
+    , [ "coast" , "under" , "relax" , "vault" , "hip"
+      , "plastic" , "boat" , "dice" , "genuine" , "inject"
+      , "have" , "swim" , "miss" , "expire" , "tornado"
+      ]
+    , [ "damp" , "fabric" , "witness" , "height" , "hurdle"
+      , "office" , "midnight" , "gaze" , "engage" , "eagle"
+      , "into" , "cup" , "about" , "velvet" , "acquire"
+      ]
     ]
 
 maMnemonics :: [Mnemonic 24]
